@@ -71,7 +71,8 @@ public class CommitContract implements ContractInterface {
                                int commitNumber, String changes) {
 
         System.out.println(ctx);
-
+        System.out.println("Client identity msp: " + ctx.getClientIdentity().getMSPID());
+        System.out.println("Client identity: " + ctx.getClientIdentity().getId());
         Commit commit = Commit.createInstance(committer, commitHash, commitDateTime, commitNumber, changes);
         commit.setPending();
         System.out.println(commit);
