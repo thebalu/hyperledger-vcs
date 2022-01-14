@@ -128,6 +128,10 @@ public class Commit extends State {
         return this;
     }
 
+    public String getChanges() {
+        return this.changes;
+    }
+
     @Override
     public String toString() {
         return "Commit::" + this.key + "   " + this.getCommitHash() + " " + getCommitter() + " " + getCommitNumber();

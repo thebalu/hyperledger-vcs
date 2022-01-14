@@ -8,7 +8,7 @@ cd /Users/balazsvarga/blockchain/fabric-samples/commercial-paper/organization/di
 bash
 cd /Users/balazsvarga/blockchain/fabric-samples/commercial-paper/organization/digibank
 source ./digibank.sh
-peer lifecycle chaincode package cp.tar.gz --lang java --path ./contract-java --label commit_1
+peer lifecycle chaincode package cp.tar.gz --lang java --path ./contract-java --label commit_2
 
 ========== INSTALL AS DIGIBANK =================
 

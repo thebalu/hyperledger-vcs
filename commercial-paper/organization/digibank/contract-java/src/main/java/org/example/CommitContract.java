@@ -3,6 +3,7 @@ SPDX-License-Identifier: Apache-2.0
 */
 package org.example;
 
+import lib.diff_match_patch;
 import org.example.ledgerapi.State;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
@@ -14,6 +15,8 @@ import org.hyperledger.fabric.contract.annotation.License;
 import org.hyperledger.fabric.contract.annotation.Transaction;
 import org.hyperledger.fabric.shim.ChaincodeStub;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.logging.Logger;
 
 /**
@@ -30,6 +33,9 @@ public class CommitContract implements ContractInterface {
 
     // use the classname for the logger, this way you can refactor
     private final static Logger LOG = Logger.getLogger(CommitContract.class.getName());
+
+    private final diff_match_patch diffTool = new diff_match_patch();
+
 
     @Override
     public Context createContext(ChaincodeStub stub) {
@@ -56,16 +62,7 @@ public class CommitContract implements ContractInterface {
         LOG.info("No data migration to perform");
     }
 
-    /**
-     * Issue commercial paper
-     *
-     * @param {Context} ctx the transaction context
-     * @param {String} issuer commercial paper issuer
-     * @param {Integer} paperNumber paper number for this issuer
-     * @param {String} issueDateTime paper issue date
-     * @param {String} maturityDateTime paper maturity date
-     * @param {Integer} faceValue face value of paper
-     */
+
     @Transaction
     public Commit createCommit(CommitContext ctx, String committer, String commitHash, String commitDateTime,
                                int commitNumber, String changes) {
@@ -81,6 +78,43 @@ public class CommitContract implements ContractInterface {
         return commit;
     }
 
+
+    @Transaction
+    public CurrentContent applyCommit(CommitContext ctx, String commitHash) {
+
+        CurrentContent currentContent = ctx.commitList.getCurrentContent();
+        String text = currentContent == null ? "" : currentContent.getText();
+
+        LOG.info("Old content is:\n" + text);
+
+        Commit commit = ctx.commitList.getCommit(commitHash);
+        if (commit == null) {
+            throw new RuntimeException("Commit with hash " + commitHash + " not found");
+        }
+        String diff = commit.getChanges();
+
+        LOG.info("Diff contained in the commit is:\n" + diff);
+
+        List<diff_match_patch.Patch> patches = diffTool.patch_fromText(diff);
+        LinkedList<diff_match_patch.Patch> patchesLinkedList = new LinkedList<>(patches);
+
+        Object[] result = diffTool.patch_apply(patchesLinkedList, text);
+        String newText = (String) result[0];
+        boolean[] success = (boolean[]) result[1];
+        for (int i = 0; i < success.length; i++) {
+            if (!success[i]) {
+                throw new RuntimeException("Failed to apply patch " + i);
+            }
+        }
+
+        LOG.info("Successfully applied patch. New content is:\n" + newText);
+
+        CurrentContent newContent = CurrentContent.createInstance(commit, newText);
+        ctx.commitList.updateCurrentContent(newContent);
+
+        LOG.info("Updated current content");
+        return newContent;
+    }
 
 //    @Transaction
 //    public Commit approve(CommitContext ctx, String issuer, String paperNumber, String currentOwner,

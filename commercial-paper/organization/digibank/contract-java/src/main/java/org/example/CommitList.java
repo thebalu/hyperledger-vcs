@@ -9,10 +9,12 @@ import org.hyperledger.fabric.contract.Context;
 
 public class CommitList {
 
-    private StateList stateList;
-
+    private final StateList stateList;
+    private final StateList currentContentList;
+    private final String CURRENT_CONTENT_LIST = "current_content_list";
     public CommitList(Context ctx) {
         this.stateList = StateList.getStateList(ctx, CommitList.class.getSimpleName(), Commit::deserialize);
+        this.currentContentList = StateList.getStateList(ctx, CURRENT_CONTENT_LIST, CurrentContent::deserialize);
     }
 
     public CommitList addCommit(Commit commit) {
@@ -24,8 +26,12 @@ public class CommitList {
         return (Commit) this.stateList.getState(commitHash);
     }
 
-    public CommitList updatePaper(CommercialPaper paper) {
-        this.stateList.updateState(paper);
+    public CurrentContent getCurrentContent() {
+        return (CurrentContent) this.currentContentList.getState(CurrentContent.CURRENT_CONTENT_KEY);
+    }
+
+    public CommitList updateCurrentContent(CurrentContent currentContent) {
+        this.currentContentList.updateState(currentContent);
         return this;
     }
 }
