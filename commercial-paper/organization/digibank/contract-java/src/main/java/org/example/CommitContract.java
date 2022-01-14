@@ -109,7 +109,7 @@ public class CommitContract implements ContractInterface {
 
         LOG.info("Successfully applied patch. New content is:\n" + newText);
 
-        CurrentContent newContent = CurrentContent.createInstance(commit, newText);
+        CurrentContent newContent = CurrentContent.createInstance(newText);
         ctx.commitList.updateCurrentContent(newContent);
 
         LOG.info("Updated current content");

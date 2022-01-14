@@ -16,9 +16,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class CurrentContent extends State {
 
     @Property()
-    private Commit latestCommit;
-
-    @Property()
     private String text;
 
     public static final String CURRENT_CONTENT_KEY = "current_content_key";
@@ -38,33 +35,25 @@ public class CurrentContent extends State {
      * @param {Buffer} data to form back into the object
      */
     public static CurrentContent deserialize(byte[] data) {
+        if (data == null || data.length == 0) {
+            return null;
+        }
         JSONObject json = new JSONObject(new String(data, UTF_8));
 
-        String latestCommitString = json.getString("latestCommit");
-        Commit latestCommit = Commit.deserialize(latestCommitString.getBytes(UTF_8));
         String text = json.getString("text");
-        return createInstance(latestCommit, text);
+        return createInstance(text);
     }
 
-    public static byte[] serialize(CurrentContent paper) {
-        return State.serialize(paper);
+    public static byte[] serialize(CurrentContent currentContent) {
+        return State.serialize(currentContent);
     }
 
-    public static CurrentContent createInstance(Commit latestCommit, String text) {
-        return new CurrentContent().setLatestCommit(latestCommit).setText(text).setKey();
+    public static CurrentContent createInstance(String text) {
+        return new CurrentContent().setText(text).setKey();
     }
 
     public CurrentContent setKey() {
         this.key = CURRENT_CONTENT_KEY;
-        return this;
-    }
-
-    public Commit getLatestCommit() {
-        return latestCommit;
-    }
-
-    public CurrentContent setLatestCommit(Commit latestCommit) {
-        this.latestCommit = latestCommit;
         return this;
     }
 

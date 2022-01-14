@@ -44,12 +44,6 @@ public class diff_match_patch {
         return patch_toText(patches);
     }
 
-    public static void main() {
-        String old = "";
-        String to  = "hello world!\nwhat's uup?";
-        String calc = new diff_match_patch().calc(old, to);
-        System.out.println(calc);
-    }
     // Defaults.
     // Set these on your diff_match_patch instance to override the defaults.
 
