@@ -15,9 +15,16 @@ import org.hyperledger.fabric.contract.annotation.License;
 import org.hyperledger.fabric.contract.annotation.Transaction;
 import org.hyperledger.fabric.shim.ChaincodeStub;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
+import java.time.temporal.TemporalUnit;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * A custom context provides easy access to list of all commercial papers
@@ -64,18 +71,72 @@ public class CommitContract implements ContractInterface {
 
 
     @Transaction
-    public Commit createCommit(CommitContext ctx, String committer, String commitHash, String commitDateTime,
-                               int commitNumber, String changes) {
+    public Commit createCommit(CommitContext ctx, String committer, String commitHash, int commitNumber, String changes) {
 
-        System.out.println(ctx);
-        System.out.println("Client identity msp: " + ctx.getClientIdentity().getMSPID());
-        System.out.println("Client identity: " + ctx.getClientIdentity().getId());
-        Commit commit = Commit.createInstance(committer, commitHash, commitDateTime, commitNumber, changes);
+        LOG.info("Client identity msp: " + ctx.getClientIdentity().getMSPID());
+        LOG.info("Client identity: " + ctx.getClientIdentity().getId());
+        Commit commit = Commit.createInstance(committer, commitHash, ctx.getStub().getTxTimestamp(), commitNumber, changes,
+                Collections.singletonList(ctx.getClientIdentity().getMSPID()));
         commit.setPending();
-        System.out.println(commit);
+        LOG.info(commit.toString());
 
         ctx.commitList.addCommit(commit);
         return commit;
+    }
+
+    @Transaction
+    public Commit voteApprove(CommitContext ctx, String commitHash) {
+        LOG.info("Client identity msp: " + ctx.getClientIdentity().getMSPID());
+        LOG.info("Client identity: " + ctx.getClientIdentity().getId());
+        Commit commit = ctx.commitList.getCommit(commitHash);
+        List<String> approvingOrgs = commit.getApprovingOrgs();
+        String mspId = ctx.getClientIdentity().getMSPID();
+
+        if (!commit.isPending()) {
+            throw new RuntimeException("Commit is in " + commit.getState() + " state. Only PENDING commits can be voted on.");
+        }
+        if (approvingOrgs.contains(mspId)) {
+            throw new RuntimeException("Org " + mspId + " has already approved this commit");
+        }
+        if (commit.getRejectingOrgs().contains(mspId)) {
+            LOG.info("Changing vote from REJECT to APPROVE for org " + mspId);
+            commit.getRejectingOrgs().remove(mspId);
+        }else {
+            LOG.info("APPROVING commit by org " + mspId);
+        }
+        approvingOrgs.add(mspId);
+
+        Commit res = ctx.commitList.updateCommit(commit);
+        LOG.info("Updated commit. \nApproving orgs list: [" + res.getApprovingOrgs() + "]\nRejecting org list: [" + res.getRejectingOrgs() + "]");
+        return res;
+    }
+
+    @Transaction
+    public Commit voteReject(CommitContext ctx, String commitHash) {
+        LOG.info("Client identity msp: " + ctx.getClientIdentity().getMSPID());
+        LOG.info("Client identity: " + ctx.getClientIdentity().getId());
+        Commit commit = ctx.commitList.getCommit(commitHash);
+        List<String> rejectingOrgs = commit.getRejectingOrgs();
+        String mspId = ctx.getClientIdentity().getMSPID();
+
+        if (!commit.isPending()) {
+            throw new RuntimeException("Commit is in " + commit.getState() + " state. Only PENDING commits can be voted on.");
+        }
+        if (rejectingOrgs.contains(mspId)) {
+            throw new RuntimeException("Org " + mspId + " has already rejected this commit");
+        }
+        if (commit.getApprovingOrgs().contains(mspId)) {
+            LOG.info("Changing vote from APPROVE to REJECT for org " + mspId);
+            commit.getApprovingOrgs().remove(mspId);
+        } else {
+            LOG.info("REJECTING commit by org " + mspId);
+        }
+        rejectingOrgs.add(mspId);
+
+        Commit res = ctx.commitList.updateCommit(commit);
+        LOG.info("Updated commit. \nApproving orgs list: [" + String.join(",", res.getApprovingOrgs())
+                + "]\nRejecting org list: [" + String.join(",", res.getRejectingOrgs()) + "]");
+        return res;
     }
 
 
@@ -85,16 +146,32 @@ public class CommitContract implements ContractInterface {
         CurrentContent currentContent = ctx.commitList.getCurrentContent();
         String text = currentContent == null ? "" : currentContent.getText();
 
+
         LOG.info("Old content is:\n" + text);
 
         Commit commit = ctx.commitList.getCommit(commitHash);
         if (commit == null) {
             throw new RuntimeException("Commit with hash " + commitHash + " not found");
         }
+        if (!commit.isPending()) {
+            throw new RuntimeException("This commit has already been applied, it is in state " + commit.getState());
+        }
+
         String diff = commit.getChanges();
 
         LOG.info("Diff contained in the commit is:\n" + diff);
 
+        if (commit.getApprovingOrgs().size() < commit.getRejectingOrgs().size()) {
+            throw new RuntimeException("Cannot apply commit, since it has fewer approvals: [" +
+                    String.join(",", commit.getApprovingOrgs()) + "] than rejections: " + String.join(",", commit.getRejectingOrgs()));
+        }
+
+        // In the real world, this would be maybe a day
+        if (ctx.getStub().getTxTimestamp().isBefore(commit.getCommitDateTime().plus(Duration.of(1, ChronoUnit.MINUTES)))) {
+            throw new RuntimeException("Voting is still in progress. The voting period will end at " +
+                    commit.getCommitDateTime().plus(Duration.of(1, ChronoUnit.MINUTES)).toString());
+        }
+        
         List<diff_match_patch.Patch> patches = diffTool.patch_fromText(diff);
         LinkedList<diff_match_patch.Patch> patchesLinkedList = new LinkedList<>(patches);
 
@@ -109,6 +186,9 @@ public class CommitContract implements ContractInterface {
 
         LOG.info("Successfully applied patch. New content is:\n" + newText);
 
+        commit.setApproved();
+        ctx.commitList.updateCommit(commit);
+
         CurrentContent newContent = CurrentContent.createInstance(newText);
         ctx.commitList.updateCurrentContent(newContent);
 
@@ -116,69 +196,5 @@ public class CommitContract implements ContractInterface {
         return newContent;
     }
 
-//    @Transaction
-//    public Commit approve(CommitContext ctx, String issuer, String paperNumber, String currentOwner,
-//            String newOwner, int price, String purchaseDateTime) {
-//
-//        // Retrieve the current paper using key fields provided
-//        String paperKey = State.makeKey(new String[] { paperNumber });
-//        Commit paper = ctx.commitList.getCommit(paperKey);
-//
-//        // Validate current owner
-//        if (!paper.getOwner().equals(currentOwner)) {
-//            throw new RuntimeException("Paper " + issuer + paperNumber + " is not owned by " + currentOwner);
-//        }
-//
-//        // First buy moves state from ISSUED to TRADING
-//        if (paper.isIssued()) {
-//            paper.setTrading();
-//        }
-//
-//        // Check paper is not already REDEEMED
-//        if (paper.isTrading()) {
-//            paper.setOwner(newOwner);
-//        } else {
-//            throw new RuntimeException(
-//                    "Paper " + issuer + paperNumber + " is not trading. Current state = " + paper.getState());
-//        }
-//
-//        // Update the paper
-//        ctx.paperList.updatePaper(paper);
-//        return paper;
-//    }
-
-    /**
-     * Redeem commercial paper
-     *
-     * @param {Context} ctx the transaction context
-     * @param {String} issuer commercial paper issuer
-     * @param {Integer} paperNumber paper number for this issuer
-     * @param {String} redeemingOwner redeeming owner of paper
-     * @param {String} redeemDateTime time paper was redeemed
-     */
-    @Transaction
-    public CommercialPaper redeem(CommercialPaperContext ctx, String issuer, String paperNumber, String redeemingOwner,
-            String redeemDateTime) {
-
-        String paperKey = CommercialPaper.makeKey(new String[] { paperNumber });
-
-        CommercialPaper paper = ctx.paperList.getPaper(paperKey);
-
-        // Check paper is not REDEEMED
-        if (paper.isRedeemed()) {
-            throw new RuntimeException("Paper " + issuer + paperNumber + " already redeemed");
-        }
-
-        // Verify that the redeemer owns the commercial paper before redeeming it
-        if (paper.getOwner().equals(redeemingOwner)) {
-            paper.setOwner(paper.getIssuer());
-            paper.setRedeemed();
-        } else {
-            throw new RuntimeException("Redeeming owner does not own paper" + issuer + paperNumber);
-        }
-
-        ctx.paperList.updatePaper(paper);
-        return paper;
-    }
 
 }

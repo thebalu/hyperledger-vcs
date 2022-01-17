@@ -7,8 +7,14 @@ package org.example;
 import org.example.ledgerapi.State;
 import org.hyperledger.fabric.contract.annotation.DataType;
 import org.hyperledger.fabric.contract.annotation.Property;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONPropertyIgnore;
+
+import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -22,7 +28,7 @@ public class Commit extends State {
     private String committer;
 
     @Property()
-    private String commitDateTime;
+    private long commitDateTime;
 
     @Property()
     private String changes;
@@ -38,6 +44,11 @@ public class Commit extends State {
     @Property()
     private String state=PENDING;
 
+    @Property()
+    private List<String> approvingOrgs;
+
+    @Property()
+    private List<String> rejectingOrgs;
 
     public String getState() {
         return state;
@@ -105,12 +116,12 @@ public class Commit extends State {
         return this;
     }
 
-    public String getCommitDateTime() {
-        return commitDateTime;
+    public Instant getCommitDateTime() {
+        return Instant.ofEpochSecond(commitDateTime);
     }
 
-    public Commit setCommitDateTime(String commitDateTime) {
-        this.commitDateTime = commitDateTime;
+    public Commit setCommitDateTime(Instant commitDateTime) {
+        this.commitDateTime = commitDateTime.getEpochSecond();
         return this;
     }
 
@@ -137,6 +148,24 @@ public class Commit extends State {
         return "Commit::" + this.key + "   " + this.getCommitHash() + " " + getCommitter() + " " + getCommitNumber();
     }
 
+    public Commit setApprovingOrgs(List<String> approvingOrgs) {
+        this.approvingOrgs = approvingOrgs;
+        return this;
+    }
+
+    public List<String> getApprovingOrgs() {
+        return approvingOrgs;
+    }
+
+    public Commit setRejectingOrgs(List<String> rejectingOrgs) {
+        this.rejectingOrgs = rejectingOrgs;
+        return this;
+    }
+
+    public List<String> getRejectingOrgs() {
+        return rejectingOrgs;
+    }
+
     /**
      * Deserialize a state data to commercial paper
      *
@@ -148,9 +177,12 @@ public class Commit extends State {
         String committer = json.getString("committer");
         String changes = json.getString("changes");
         String commitHash = json.getString("commitHash");
-        String commitDateTime = json.getString("commitDateTime");
+        Instant commitDateTime = Instant.ofEpochSecond(json.getLong("commitDateTime"));
         int commitNumber = json.getInt("commitNumber");
-        return createInstance(committer, commitHash, commitDateTime, commitNumber, changes);
+        JSONArray approvingOrgs = json.getJSONArray("approvingOrgs");
+        List<String> approvingOrgsList = approvingOrgs.toList()
+                .stream().map(s -> (String) s).collect(Collectors.toList());
+        return createInstance(committer, commitHash, commitDateTime, commitNumber, changes, approvingOrgsList);
     }
 
     public static byte[] serialize(Commit paper) {
@@ -160,10 +192,11 @@ public class Commit extends State {
     /**
      * Factory method to create a commercial paper object
      */
-    public static Commit createInstance(String committer, String commitHash, String commitDateTime,
-                                        int commitNumber, String changes) {
+    public static Commit createInstance(String committer, String commitHash, Instant commitDateTime,
+                                        int commitNumber, String changes, List<String> approvingOrgsList) {
         return new Commit().setCommitter(committer).setCommitHash(commitHash)
-                .setCommitNumber(commitNumber).setKey().setCommitDateTime(commitDateTime).setChanges(changes);
+                .setCommitNumber(commitNumber).setKey().setCommitDateTime(commitDateTime).setChanges(changes)
+                .setApprovingOrgs(approvingOrgsList).setRejectingOrgs(Collections.emptyList());
     }
 
 }
