@@ -26,8 +26,9 @@ public class CommitList {
         return (Commit) this.stateList.getState(commitHash);
     }
 
-    public Commit updateCommit(Commit commit) {
-        return (Commit) this.stateList.updateState(commit);
+    public CommitList updateCommit(Commit commit) {
+        this.stateList.updateState(commit);
+        return this;
     }
 
     public CurrentContent getCurrentContent() {

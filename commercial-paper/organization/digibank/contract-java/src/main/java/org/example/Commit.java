@@ -11,6 +11,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONPropertyIgnore;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -116,12 +117,12 @@ public class Commit extends State {
         return this;
     }
 
-    public Instant getCommitDateTime() {
-        return Instant.ofEpochSecond(commitDateTime);
+    public Long getCommitDateTime() {
+        return commitDateTime;
     }
 
-    public Commit setCommitDateTime(Instant commitDateTime) {
-        this.commitDateTime = commitDateTime.getEpochSecond();
+    public Commit setCommitDateTime(Long commitDateTime) {
+        this.commitDateTime = commitDateTime;
         return this;
     }
 
@@ -172,12 +173,14 @@ public class Commit extends State {
      * @param {Buffer} data to form back into the object
      */
     public static Commit deserialize(byte[] data) {
+        System.out.println("Deserializing data: ");
+        System.out.println(new String(data, UTF_8));
         JSONObject json = new JSONObject(new String(data, UTF_8));
-
+        System.out.println("Json: " + json);
         String committer = json.getString("committer");
         String changes = json.getString("changes");
         String commitHash = json.getString("commitHash");
-        Instant commitDateTime = Instant.ofEpochSecond(json.getLong("commitDateTime"));
+        Long commitDateTime = json.getLong("commitDateTime");
         int commitNumber = json.getInt("commitNumber");
         JSONArray approvingOrgs = json.getJSONArray("approvingOrgs");
         List<String> approvingOrgsList = approvingOrgs.toList()
@@ -192,7 +195,7 @@ public class Commit extends State {
     /**
      * Factory method to create a commercial paper object
      */
-    public static Commit createInstance(String committer, String commitHash, Instant commitDateTime,
+    public static Commit createInstance(String committer, String commitHash, Long commitDateTime,
                                         int commitNumber, String changes, List<String> approvingOrgsList) {
         return new Commit().setCommitter(committer).setCommitHash(commitHash)
                 .setCommitNumber(commitNumber).setKey().setCommitDateTime(commitDateTime).setChanges(changes)

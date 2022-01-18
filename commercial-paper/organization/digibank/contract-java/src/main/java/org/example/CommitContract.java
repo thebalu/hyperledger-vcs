@@ -16,6 +16,7 @@ import org.hyperledger.fabric.contract.annotation.Transaction;
 import org.hyperledger.fabric.shim.ChaincodeStub;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 import java.time.temporal.TemporalUnit;
@@ -75,7 +76,7 @@ public class CommitContract implements ContractInterface {
 
         LOG.info("Client identity msp: " + ctx.getClientIdentity().getMSPID());
         LOG.info("Client identity: " + ctx.getClientIdentity().getId());
-        Commit commit = Commit.createInstance(committer, commitHash, ctx.getStub().getTxTimestamp(), commitNumber, changes,
+        Commit commit = Commit.createInstance(committer, commitHash, ctx.getStub().getTxTimestamp().toEpochMilli(), commitNumber, changes,
                 Collections.singletonList(ctx.getClientIdentity().getMSPID()));
         commit.setPending();
         LOG.info(commit.toString());
@@ -106,9 +107,10 @@ public class CommitContract implements ContractInterface {
         }
         approvingOrgs.add(mspId);
 
-        Commit res = ctx.commitList.updateCommit(commit);
-        LOG.info("Updated commit. \nApproving orgs list: [" + res.getApprovingOrgs() + "]\nRejecting org list: [" + res.getRejectingOrgs() + "]");
-        return res;
+        ctx.commitList.updateCommit(commit);
+        LOG.info("Updated commit. \nApproving orgs list: [" + String.join(",", commit.getApprovingOrgs())
+                + "]\nRejecting org list: [" + String.join(",", commit.getRejectingOrgs()) + "]");
+        return commit;
     }
 
     @Transaction
@@ -133,10 +135,10 @@ public class CommitContract implements ContractInterface {
         }
         rejectingOrgs.add(mspId);
 
-        Commit res = ctx.commitList.updateCommit(commit);
-        LOG.info("Updated commit. \nApproving orgs list: [" + String.join(",", res.getApprovingOrgs())
-                + "]\nRejecting org list: [" + String.join(",", res.getRejectingOrgs()) + "]");
-        return res;
+        ctx.commitList.updateCommit(commit);
+        LOG.info("Updated commit. \nApproving orgs list: [" + String.join(",", commit.getApprovingOrgs())
+                + "]\nRejecting org list: [" + String.join(",", commit.getRejectingOrgs()) + "]");
+        return commit;
     }
 
 
@@ -145,7 +147,6 @@ public class CommitContract implements ContractInterface {
 
         CurrentContent currentContent = ctx.commitList.getCurrentContent();
         String text = currentContent == null ? "" : currentContent.getText();
-
 
         LOG.info("Old content is:\n" + text);
 
@@ -167,11 +168,11 @@ public class CommitContract implements ContractInterface {
         }
 
         // In the real world, this would be maybe a day
-        if (ctx.getStub().getTxTimestamp().isBefore(commit.getCommitDateTime().plus(Duration.of(1, ChronoUnit.MINUTES)))) {
+        if (ctx.getStub().getTxTimestamp().isBefore(Instant.ofEpochMilli(commit.getCommitDateTime()).plus(Duration.of(1, ChronoUnit.MINUTES)))) {
             throw new RuntimeException("Voting is still in progress. The voting period will end at " +
-                    commit.getCommitDateTime().plus(Duration.of(1, ChronoUnit.MINUTES)).toString());
+                    Instant.ofEpochMilli(commit.getCommitDateTime()).plus(Duration.of(1, ChronoUnit.MINUTES)).toString());
         }
-        
+
         List<diff_match_patch.Patch> patches = diffTool.patch_fromText(diff);
         LinkedList<diff_match_patch.Patch> patchesLinkedList = new LinkedList<>(patches);
 
