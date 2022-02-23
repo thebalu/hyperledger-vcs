@@ -7,6 +7,13 @@ package org.example;
 import org.example.ledgerapi.StateList;
 import org.hyperledger.fabric.contract.Context;
 
+/**
+ * Wrapper class around managing the world state.
+ *
+ * Commits are stored as key-value pairs, where the key is the hash
+ * There is a special key in the state which is currentContent, it stores the current state of the file.
+ * Diffs from commits get applied to this currentContent.
+ */
 public class CommitList {
 
     private final StateList stateList;

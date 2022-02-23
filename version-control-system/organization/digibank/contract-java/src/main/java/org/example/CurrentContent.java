@@ -29,11 +29,6 @@ public class CurrentContent extends State {
         return "CurrentContent::" + this.key + "\n==========================" + this.getText() + "\n==========================";
     }
 
-    /**
-     * Deserialize a state data to commercial paper
-     *
-     * @param {Buffer} data to form back into the object
-     */
     public static CurrentContent deserialize(byte[] data) {
         if (data == null || data.length == 0) {
             return null;

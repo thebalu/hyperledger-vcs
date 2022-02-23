@@ -25,8 +25,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
- * Define Commit smart contract by extending Fabric Contract class
- *
+ * Smart contract for submitting and voting on Commits
  */
 @Contract(name = "org.papernet.commit", info = @Info(title = "Commit contract", description = "", version = "0.0.1", license = @License(name = "SPDX-License-Identifier: ", url = ""), contact = @Contact(email = "java-contract@example.com", name = "java-contract", url = "http://java-contract.me")))
 @Default
@@ -47,15 +46,6 @@ public class CommitContract implements ContractInterface {
 
     }
 
-    /**
-     * Define a custom context for commercial paper
-     */
-
-    /**
-     * Instantiate to perform any setup of the ledger that might be required.
-     *
-     * @param {Context} ctx the transaction context
-     */
     @Transaction
     public void instantiate(CommitContext ctx) {
         // No implementation required with this example
@@ -63,7 +53,15 @@ public class CommitContract implements ContractInterface {
         LOG.info("No data migration to perform");
     }
 
-
+    /**
+     * Creates a new pending commit
+     * @param ctx
+     * @param committer email address of committer
+     * @param commitHash hash of the commit (for now, manually provided for easy testing)
+     * @param commitNumber number of commit
+     * @param changes a diff understood by the diff tool
+     * @return Json representation of the Commit object
+     */
     @Transaction
     public Commit createCommit(CommitContext ctx, String committer, String commitHash, int commitNumber, String changes) {
 
@@ -77,6 +75,9 @@ public class CommitContract implements ContractInterface {
         return commit;
     }
 
+    /**
+     * Vote in the name of the invoker's organization to approve the commit
+     */
     @Transaction
     public Commit voteApprove(CommitContext ctx, String commitHash) {
         LOG.info("Client identity msp: " + ctx.getClientIdentity().getMSPID());
@@ -109,6 +110,10 @@ public class CommitContract implements ContractInterface {
         return commit;
     }
 
+
+    /**
+     * Vote in the name of the invoker's organization to reject the commit
+     */
     @Transaction
     public Commit voteReject(CommitContext ctx, String commitHash) {
         LOG.info("Client identity msp: " + ctx.getClientIdentity().getMSPID());
@@ -142,6 +147,9 @@ public class CommitContract implements ContractInterface {
     }
 
 
+    /**
+     * Can be invoked after the waiting period has expired. If there are more approvals than rejections, applies the commit to the current state.
+     */
     @Transaction
     public CurrentContent applyCommit(CommitContext ctx, String commitHash) {
 
