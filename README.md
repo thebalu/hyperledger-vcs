@@ -1,5 +1,19 @@
 [//]: # (SPDX-License-Identifier: CC-BY-4.0)
 
+
+# Commit contract
+
+This project is a fork of the `fabric-samples` provided by Hyperledger. We have removed most of the examples and used the `commercial_paper` contract as a starting point to develop our demo project.
+It is a smart contract that allows the version control of a file. Organizations can propose commits, vote on them and apply them to the content of a file.
+
+We have also made a few changes to the `test-network` configuration and scripts to bring up a suitable network.
+
+We claim no ownership of the rest of the content in this repository.
+
+We also use the [diff-patch-match](https://github.com/google/diff-match-patch) tool, licensed under Apache 2.0.
+
+The original readme can be found below.
+
 # Hyperledger Fabric Samples
 
 [![Build Status](https://dev.azure.com/Hyperledger/Fabric-Samples/_apis/build/status/Fabric-Samples?branchName=main)](https://dev.azure.com/Hyperledger/Fabric-Samples/_build/latest?definitionId=28&branchName=main)
@@ -50,7 +64,7 @@ Additional samples demonstrate various Fabric use cases and application patterns
 
 |  **Sample** | **Description** | **Documentation** |
 | -------------|------------------------------|------------------|
-| [Commercial paper](commercial-paper) | Explore a use case and detailed application development tutorial in which two organizations use a blockchain network to trade commercial paper. | [Commercial paper tutorial](https://hyperledger-fabric.readthedocs.io/en/latest/tutorial/commercial_paper.html) |
+| [Commercial paper](version-control-system) | Explore a use case and detailed application development tutorial in which two organizations use a blockchain network to trade commercial paper. | [Commercial paper tutorial](https://hyperledger-fabric.readthedocs.io/en/latest/tutorial/commercial_paper.html) |
 | [Off chain data](off_chain_data) | Learn how to use the Peer channel-based event services to build an off-chain database for reporting and analytics. | [Peer channel-based event services](https://hyperledger-fabric.readthedocs.io/en/latest/peer_event_services.html) |
 | [Token ERC-20](token-erc-20) | Smart contract demonstrating how to create and transfer fungible tokens using an account-based model. | [README](token-erc-20/README.md) |
 | [Token UTXO](token-utxo) | Smart contract demonstrating how to create and transfer fungible tokens using a UTXO (unspent transaction output) model. | [README](token-utxo/README.md) |
