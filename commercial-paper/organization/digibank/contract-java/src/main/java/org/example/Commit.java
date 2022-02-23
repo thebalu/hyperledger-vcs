@@ -13,6 +13,7 @@ import org.json.JSONPropertyIgnore;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -46,10 +47,10 @@ public class Commit extends State {
     private String state=PENDING;
 
     @Property()
-    private List<String> approvingOrgs;
+    private ArrayList<String> approvingOrgs;
 
     @Property()
-    private List<String> rejectingOrgs;
+    private ArrayList<String> rejectingOrgs;
 
     public String getState() {
         return state;
@@ -85,7 +86,7 @@ public class Commit extends State {
         return this;
     }
 
-    public Commit setRedeemed() {
+    public Commit setRejected() {
         this.state = REJECTED;
         return this;
     }
@@ -150,7 +151,7 @@ public class Commit extends State {
     }
 
     public Commit setApprovingOrgs(List<String> approvingOrgs) {
-        this.approvingOrgs = approvingOrgs;
+        this.approvingOrgs = new ArrayList<>(approvingOrgs);
         return this;
     }
 
@@ -159,7 +160,7 @@ public class Commit extends State {
     }
 
     public Commit setRejectingOrgs(List<String> rejectingOrgs) {
-        this.rejectingOrgs = rejectingOrgs;
+        this.rejectingOrgs = new ArrayList<>(rejectingOrgs);
         return this;
     }
 
@@ -183,9 +184,14 @@ public class Commit extends State {
         Long commitDateTime = json.getLong("commitDateTime");
         int commitNumber = json.getInt("commitNumber");
         JSONArray approvingOrgs = json.getJSONArray("approvingOrgs");
+        JSONArray rejectingOrgs = json.getJSONArray("rejectingOrgs");
+        String state = json.getString("state").toUpperCase();
+
         List<String> approvingOrgsList = approvingOrgs.toList()
                 .stream().map(s -> (String) s).collect(Collectors.toList());
-        return createInstance(committer, commitHash, commitDateTime, commitNumber, changes, approvingOrgsList);
+        List<String> rejectingOrgsList = rejectingOrgs.toList()
+                .stream().map(s -> (String) s).collect(Collectors.toList());
+        return createInstance(committer, commitHash, commitDateTime, commitNumber, changes, approvingOrgsList, rejectingOrgsList, state);
     }
 
     public static byte[] serialize(Commit paper) {
@@ -196,10 +202,18 @@ public class Commit extends State {
      * Factory method to create a commercial paper object
      */
     public static Commit createInstance(String committer, String commitHash, Long commitDateTime,
-                                        int commitNumber, String changes, List<String> approvingOrgsList) {
-        return new Commit().setCommitter(committer).setCommitHash(commitHash)
-                .setCommitNumber(commitNumber).setKey().setCommitDateTime(commitDateTime).setChanges(changes)
-                .setApprovingOrgs(approvingOrgsList).setRejectingOrgs(Collections.emptyList());
+                                        int commitNumber, String changes, List<String> approvingOrgsList,
+                                        List<String> rejectingOrgsList, String state) {
+        return new Commit()
+                .setCommitter(committer)
+                .setCommitHash(commitHash)
+                .setCommitNumber(commitNumber)
+                .setKey()
+                .setCommitDateTime(commitDateTime)
+                .setChanges(changes)
+                .setApprovingOrgs(approvingOrgsList)
+                .setRejectingOrgs(rejectingOrgsList)
+                .setState(state);
     }
 
 }

@@ -4,7 +4,6 @@ SPDX-License-Identifier: Apache-2.0
 package org.example;
 
 import lib.diff_match_patch;
-import org.example.ledgerapi.State;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
 import org.hyperledger.fabric.contract.annotation.Contact;
@@ -18,9 +17,7 @@ import org.hyperledger.fabric.shim.ChaincodeStub;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAmount;
-import java.time.temporal.TemporalUnit;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -28,11 +25,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
- * A custom context provides easy access to list of all commercial papers
- */
-
-/**
- * Define commercial paper smart contract by extending Fabric Contract class
+ * Define Commit smart contract by extending Fabric Contract class
  *
  */
 @Contract(name = "org.papernet.commit", info = @Info(title = "Commit contract", description = "", version = "0.0.1", license = @License(name = "SPDX-License-Identifier: ", url = ""), contact = @Contact(email = "java-contract@example.com", name = "java-contract", url = "http://java-contract.me")))
@@ -77,8 +70,7 @@ public class CommitContract implements ContractInterface {
         LOG.info("Client identity msp: " + ctx.getClientIdentity().getMSPID());
         LOG.info("Client identity: " + ctx.getClientIdentity().getId());
         Commit commit = Commit.createInstance(committer, commitHash, ctx.getStub().getTxTimestamp().toEpochMilli(), commitNumber, changes,
-                Collections.singletonList(ctx.getClientIdentity().getMSPID()));
-        commit.setPending();
+                Collections.singletonList(ctx.getClientIdentity().getMSPID()), Collections.emptyList(), Commit.PENDING);
         LOG.info(commit.toString());
 
         ctx.commitList.addCommit(commit);
@@ -101,11 +93,15 @@ public class CommitContract implements ContractInterface {
         }
         if (commit.getRejectingOrgs().contains(mspId)) {
             LOG.info("Changing vote from REJECT to APPROVE for org " + mspId);
-            commit.getRejectingOrgs().remove(mspId);
+            List<String> rejecting = commit.getRejectingOrgs().stream().filter(s -> !s.equals(mspId)).collect(Collectors.toList());
+            commit.setRejectingOrgs(rejecting);
         }else {
             LOG.info("APPROVING commit by org " + mspId);
         }
-        approvingOrgs.add(mspId);
+
+        List<String> approving = new ArrayList<>(approvingOrgs);
+        approving.add(mspId);
+        commit.setApprovingOrgs(approving);
 
         ctx.commitList.updateCommit(commit);
         LOG.info("Updated commit. \nApproving orgs list: [" + String.join(",", commit.getApprovingOrgs())
@@ -129,11 +125,15 @@ public class CommitContract implements ContractInterface {
         }
         if (commit.getApprovingOrgs().contains(mspId)) {
             LOG.info("Changing vote from APPROVE to REJECT for org " + mspId);
-            commit.getApprovingOrgs().remove(mspId);
+            List<String> approving = commit.getApprovingOrgs().stream().filter(s -> !s.equals(mspId)).collect(Collectors.toList());
+            commit.setApprovingOrgs(approving);
         } else {
             LOG.info("REJECTING commit by org " + mspId);
         }
-        rejectingOrgs.add(mspId);
+
+        List<String> rejecting = new ArrayList<>(rejectingOrgs);
+        rejecting.add(mspId);
+        commit.setRejectingOrgs(rejecting);
 
         ctx.commitList.updateCommit(commit);
         LOG.info("Updated commit. \nApproving orgs list: [" + String.join(",", commit.getApprovingOrgs())
@@ -162,15 +162,22 @@ public class CommitContract implements ContractInterface {
 
         LOG.info("Diff contained in the commit is:\n" + diff);
 
-        if (commit.getApprovingOrgs().size() < commit.getRejectingOrgs().size()) {
-            throw new RuntimeException("Cannot apply commit, since it has fewer approvals: [" +
-                    String.join(",", commit.getApprovingOrgs()) + "] than rejections: " + String.join(",", commit.getRejectingOrgs()));
-        }
-
         // In the real world, this would be maybe a day
         if (ctx.getStub().getTxTimestamp().isBefore(Instant.ofEpochMilli(commit.getCommitDateTime()).plus(Duration.of(1, ChronoUnit.MINUTES)))) {
             throw new RuntimeException("Voting is still in progress. The voting period will end at " +
                     Instant.ofEpochMilli(commit.getCommitDateTime()).plus(Duration.of(1, ChronoUnit.MINUTES)).toString());
+        }
+
+        LOG.info("Approving:" + commit.getApprovingOrgs().size());
+        LOG.info("Rejecting:" + commit.getRejectingOrgs().size());
+        LOG.info("Condition: " + (commit.getApprovingOrgs().size() <= commit.getRejectingOrgs().size()));
+        if (commit.getApprovingOrgs().size() <= commit.getRejectingOrgs().size()) {
+            commit.setRejected();
+            ctx.commitList.updateCommit(commit);
+            LOG.info("Commit was REJECTED because there are " + commit.getApprovingOrgs().size() + " approving, " +
+                    commit.getRejectingOrgs().size() + " rejecting votes. Current content is NOT CHANGED.");
+            LOG.info(text);
+            return currentContent;
         }
 
         List<diff_match_patch.Patch> patches = diffTool.patch_fromText(diff);

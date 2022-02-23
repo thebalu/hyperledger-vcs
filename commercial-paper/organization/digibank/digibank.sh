@@ -4,7 +4,7 @@
 #
 TMPFILE=`mktemp`
 shopt -s extglob
-
+PS1='(digibank) > '
 function _exit(){
     printf "Exiting:%s\n" "$1"
     exit -1

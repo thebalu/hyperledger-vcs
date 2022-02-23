@@ -33,6 +33,8 @@ peer lifecycle chaincode commit -o localhost:7050 --ordererTLSHostnameOverride o
  --tlsRootCertFiles ${PEER0_ORG1_CA} --peerAddresses localhost:9051 --tlsRootCertFiles ${PEER0_ORG2_CA} --channelID mychannel \
   --name newcommit -v 0 --sequence 1 --tls --cafile $ORDERER_CA --waitForEvent
 
+
+==============================================================================================================================
 peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com \
  --tls --cafile "/Users/balazsvarga/blockchain/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" \
  -C mychannel -n newcommit --peerAddresses localhost:7051 --tlsRootCertFiles "${PEER0_ORG1_CA}" \
@@ -56,10 +58,105 @@ peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.exa
  --tls --cafile "/Users/balazsvarga/blockchain/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" \
  -C mychannel -n newcommit --peerAddresses localhost:7051 --tlsRootCertFiles "${PEER0_ORG1_CA}" \
  --peerAddresses localhost:9051 --tlsRootCertFiles "${PEER0_ORG2_CA}" \
- -c '{"function":"applyCommit","Args":["second"]}'
+ -c '{"function":"applyCommit","Args":["qwe"]}'
 
  peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com \
   --tls --cafile "/Users/balazsvarga/blockchain/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" \
   -C mychannel -n newcommit --peerAddresses localhost:7051 --tlsRootCertFiles "${PEER0_ORG1_CA}" \
   --peerAddresses localhost:9051 --tlsRootCertFiles "${PEER0_ORG2_CA}" \
   -c '{"function":"voteApprove","Args":["qwe"]}'
+
+
+==============================
+
+====================== Create initial commit by org1: ======================
+
+source ./digibank.sh
+
+peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com \
+ --tls --cafile "/Users/balazsvarga/blockchain/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" \
+ -C mychannel -n newcommit --peerAddresses localhost:7051 --tlsRootCertFiles "${PEER0_ORG1_CA}" \
+ --peerAddresses localhost:9051 --tlsRootCertFiles "${PEER0_ORG2_CA}" \
+ -c '{"function":"createCommit","Args":["alice@org1","initial","1","@@ -0,0 +1,146 @@\n+%3Chtml%3E%0A%3Cbody%3E%0A    %3Ch1%3ECompany emails%3C/h1%3E%0A    %3Cp%3E Magnetocorp: magnetocorp@gmail.com%3C/p%3E%0A    %3Cp%3E Digibank: digibank@gmail.com%3C/p%3E%0A%3C/body%3E%0A%3C/html%3E%0A\n"]}'
+
+====================== Approve initial commit by org2, then apply (by anyone): ======================
+
+ source ../magnetocorp/magnetocorp.sh
+
+ peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com \
+  --tls --cafile "/Users/balazsvarga/blockchain/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" \
+  -C mychannel -n newcommit --peerAddresses localhost:7051 --tlsRootCertFiles "${PEER0_ORG1_CA}" \
+  --peerAddresses localhost:9051 --tlsRootCertFiles "${PEER0_ORG2_CA}" \
+  -c '{"function":"voteApprove","Args":["initial"]}'
+
+peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com \
+ --tls --cafile "/Users/balazsvarga/blockchain/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" \
+ -C mychannel -n newcommit --peerAddresses localhost:7051 --tlsRootCertFiles "${PEER0_ORG1_CA}" \
+ --peerAddresses localhost:9051 --tlsRootCertFiles "${PEER0_ORG2_CA}" \
+ -c '{"function":"applyCommit","Args":["initial"]}'
+
+====================== Create wrong commit by org1: ======================
+
+source ./digibank.sh
+
+peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com \
+ --tls --cafile "/Users/balazsvarga/blockchain/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" \
+ -C mychannel -n newcommit --peerAddresses localhost:7051 --tlsRootCertFiles "${PEER0_ORG1_CA}" \
+ --peerAddresses localhost:9051 --tlsRootCertFiles "${PEER0_ORG2_CA}" \
+ -c '{"function":"createCommit","Args":["alice@org1","wrong","2","@@ -104,16 +104,19 @@\n nk: \n-digibank\n+magnetocorp\n @gma\n@@ -137,13 +137,12 @@\n ody%3E%0A%3C/html%3E\n-%0A\n"]}'
+
+
+====================== Reject wrong commit by org2, then try to apply (by anyone): ======================
+
+ source ../magnetocorp/magnetocorp.sh
+
+ peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com \
+  --tls --cafile "/Users/balazsvarga/blockchain/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" \
+  -C mychannel -n newcommit --peerAddresses localhost:7051 --tlsRootCertFiles "${PEER0_ORG1_CA}" \
+  --peerAddresses localhost:9051 --tlsRootCertFiles "${PEER0_ORG2_CA}" \
+  -c '{"function":"voteReject","Args":["wrong"]}'
+
+ source ../digibank.sh
+
+peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com \
+ --tls --cafile "/Users/balazsvarga/blockchain/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" \
+ -C mychannel -n newcommit --peerAddresses localhost:7051 --tlsRootCertFiles "${PEER0_ORG1_CA}" \
+ --peerAddresses localhost:9051 --tlsRootCertFiles "${PEER0_ORG2_CA}" \
+ -c '{"function":"applyCommit","Args":["wrong"]}'
+
+
+  ====================== Create right commit by org1: ======================
+
+  source ./digibank.sh
+
+  peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com \
+   --tls --cafile "/Users/balazsvarga/blockchain/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" \
+   -C mychannel -n newcommit --peerAddresses localhost:7051 --tlsRootCertFiles "${PEER0_ORG1_CA}" \
+   --peerAddresses localhost:9051 --tlsRootCertFiles "${PEER0_ORG2_CA}" \
+   -c '{"function":"createCommit","Args":["alice@org1","right","3","@@ -108,16 +108,20 @@\n digibank\n+_new\n @gmail.c\n@@ -138,13 +138,12 @@\n ody%3E%0A%3C/html%3E\n-%0A\n"]}'
+
+
+  ====================== APPROVE commit by org2, then try to apply (by anyone): ======================
+
+   source ../magnetocorp/magnetocorp.sh
+
+   peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com \
+    --tls --cafile "/Users/balazsvarga/blockchain/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" \
+    -C mychannel -n newcommit --peerAddresses localhost:7051 --tlsRootCertFiles "${PEER0_ORG1_CA}" \
+    --peerAddresses localhost:9051 --tlsRootCertFiles "${PEER0_ORG2_CA}" \
+    -c '{"function":"voteApprove","Args":["right"]}'
+
+   source ../digibank.sh
+
+  peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com \
+   --tls --cafile "/Users/balazsvarga/blockchain/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" \
+   -C mychannel -n newcommit --peerAddresses localhost:7051 --tlsRootCertFiles "${PEER0_ORG1_CA}" \
+   --peerAddresses localhost:9051 --tlsRootCertFiles "${PEER0_ORG2_CA}" \
+   -c '{"function":"applyCommit","Args":["right"]}'
+
+================================== Inspect latest block
+
+peer channel fetch -c mychannel newest
+
+configtxlator proto_decode --type common.Block --input mychannel_newest.block
+

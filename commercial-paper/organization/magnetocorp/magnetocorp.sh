@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 TMPFILE=`mktemp`
 shopt -s extglob
-
+PS1='(magnetocorp) > '
 function _exit(){
     printf "Exiting:%s\n" "$1"
     exit -1

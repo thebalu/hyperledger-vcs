@@ -53,7 +53,6 @@ public class State {
     }
 
     public static String[] splitKey(String key) {
-        System.out.println("splitting key " + key + "   " + java.util.Arrays.asList(key.split(":")));
         return key.split(":");
     }
 

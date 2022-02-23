@@ -75,7 +75,6 @@ public class StateListImpl implements StateList {
 
         byte[] data = this.ctx.getStub().getState(ledgerKey.toString());
         if (data != null) {
-            System.out.println("Deserializing: " + Arrays.toString(data));
             State state = this.deserializer.deserialize(data);
             return state;
         } else {
